@@ -5,6 +5,8 @@ import { idlFactory } from "../../../declarations/nft";
 import { Principal } from "@dfinity/principal";
 import { opend } from "../../../declarations/opend";
 import Button from "./Button";
+import CURRENT_USER_ID from "../index";
+import PriceLabel from "./PriecLabel";
 
 function Item(props) {
 
@@ -17,6 +19,7 @@ function Item(props) {
   const [loaderHidden, setHidden] = useState(true);
   const [blur, setBlur] = useState();
   const [sellStatus, setSellStatus] = useState("");
+  const [priceLabel, setPriceLabel] = useState();
 
 
   const id = props.id;
@@ -24,7 +27,7 @@ function Item(props) {
   const localHost = "http://localhost:8080/";
   const agent = new HttpAgent({ host: localHost });
 
-  //Remove the following line when deploy live on ICP
+  //Coment or remove the following line when deploy live on ICP
   agent.fetchRootKey();
 
   let NFTActor;
@@ -50,21 +53,31 @@ function Item(props) {
     setImage(image);
 
     //Get listed NFT
-    const nftIsListed = await opend.isListed(props.id);
-    if (nftIsListed) {
-      setBlur({ filter: "blur(4px)" });
-      setOwner("OpenD");
-      setSellStatus("Listed");
-    } else {
-      setButton(<Button handleClick={handleSell} text={"Sell"}/>);
+    if (props.role == "collection") {
+      const nftIsListed = await opend.isListed(props.id);
+      if (nftIsListed) {
+        setBlur({ filter: "blur(4px)" });
+        setOwner("OpenD");
+        setSellStatus("Listed");
+      } else {
+        setButton(<Button handleClick={handleSell} text={"Sell"}/>);
+      }
+    } else if (props.role == "discover") {
+      const originalOwner = await opend.getOriginalOwner(props.id);
+      if (originalOwner.toText() != CURRENT_USER_ID.toText()) {
+        setButton(<Button handleClick={handleBuy} text={"Buy"}/>);
+      }
+
+      const price = await opend.getListedNFTPrice(props.id);
+      setPriceLabel(<PriceLabel sellPrice={price.toString()} />);
     }
-    
   }
 
   useEffect(() => {
     loadNFT();
   }, []);
 
+  //Handle sell or buy
   let price;
   function handleSell() {
     console.log("sell clicked");
@@ -80,6 +93,7 @@ function Item(props) {
     setButton(<Button handleClick={sellItem} text={"Confirm"}/>);
   }
 
+  //Sell function for My NFTs page
   async function sellItem() {
     setBlur({filter: "blur(4px)"});
     setHidden(false);
@@ -100,6 +114,10 @@ function Item(props) {
     }
   }
 
+  //Buy function for Discover page
+  async function handleBuy() {
+    console.log("Buy was triggered");
+  }
 
   return (
     <div className="disGrid-item">
@@ -116,6 +134,7 @@ function Item(props) {
           <div></div>
         </div>
         <div className="disCardContent-root">
+          {priceLabel}
           <h2 className="disTypography-root makeStyles-bodyText-24 disTypography-h5 disTypography-gutterBottom">
             {name}<span className="purple-text"> {sellStatus}</span>
           </h2>
