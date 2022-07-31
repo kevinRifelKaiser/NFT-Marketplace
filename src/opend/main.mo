@@ -9,7 +9,7 @@ import Iter "mo:base/Iter";
 
 actor OpenD {
 
-    //Custom data type for mapOfListing
+    //Custom data type for mapOfListings
     private type Listing = {
         itemOwner: Principal;
         itemPrice: Nat;
@@ -122,5 +122,32 @@ actor OpenD {
 
         return listing.itemPrice;
     };
+
+
+    public shared(msg) func completePurchase(id: Principal, ownerId: Principal, newOwnerId: Principal) : async Text {        
+        var purchasedNFT : NFTActorClass.NFT = switch(mapOfNFTs.get(id)) {
+            case null return "NFT does not exist";
+            case (?result) result;
+        };
+
+        let transferResult = await purchasedNFT.transferOwnership(newOwnerId);
+
+        if (transferResult == "Success") {
+            mapOfListings.delete(id);
+            var ownedNFTs : List.List<Principal> = switch(mapOfOwners.get(ownerId)) {
+                case null List.nil<Principal>();
+                case (?result) result;
+            };
+            ownedNFTs := List.filter(ownedNFTs, func (listItemId: Principal) : Bool {
+                return listItemId != id; 
+            });
+
+            addToOwnershipMap(newOwnerId, id);
+            return "Success";
+        } else {
+            return "Error";
+        }
+    };
+
 
 };
